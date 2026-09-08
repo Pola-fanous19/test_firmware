@@ -1,36 +1,45 @@
-name: Compile and Release Target Firmware
+name: Build and Release Target Firmware
 
 on:
   push:
-    tags:
-      - 'v*' # Triggers only when you push a tag like v1.0.0
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
+    container: espressif/idf:release-v5.3
+
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Install Arduino CLI
-        uses: arduino/setup-arduino-cli@v3
-
-      - name: Install ESP32 Core
+      - name: Build flat_nodeMCU with ESP-IDF
         run: |
-          arduino-cli config init
-          arduino-cli config set board_manager.additional_urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-          arduino-cli core update-index
-          arduino-cli core install esp32:esp32
+          . /opt/esp/idf/export.sh
+          idf.py set-target esp32
+          idf.py build
 
-      - name: Compile Sketch
+      - name: Package Firmware as nodemcu_blink.bin
         run: |
-          # Replace 'TargetFirmware' with the exact name of your sketch folder
-          arduino-cli compile --fqbn esp32:esp32:nodemcu-32s --export-binaries ./TargetFirmware
+          mkdir -p release_assets
+          if [ -f build/flat_nodeMCU.bin ]; then
+            cp build/flat_nodeMCU.bin release_assets/nodemcu_blink.bin
+          else
+            cp build/*.bin release_assets/nodemcu_blink.bin
+          fi
+          ls -la release_assets/
 
-      - name: Upload to GitHub Releases
+      - name: Upload nodemcu_blink.bin to Release 0.0.1
         uses: softprops/action-gh-release@v2
         with:
-          # This grabs the compiled .bin file from the build directory
-          files: ./TargetFirmware/build/esp32.esp32.nodemcu-32s/*.bin
+          tag_name: 0.0.1
+          name: Release 0.0.1
+          files: release_assets/nodemcu_blink.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
