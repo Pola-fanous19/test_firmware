@@ -2,7 +2,8 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 
-#define LED_GPIO GPIO_NUM_2
+#define BLINK_GPIO GPIO_NUM_2
+#define BLINK_PERIOD_MS 500
 
 void app_main(void)
 {
